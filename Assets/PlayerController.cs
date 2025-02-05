@@ -33,7 +33,7 @@ public class PlayerController : MonoBehaviour
     void FixedUpdate()
     {
         animator.SetFloat("speed", Mathf.Abs(movementVector.x));   // for animation
-       
+
         if (movementVector.x > 0 && body.velocity.x < maxSpeed)
             //transform.Translate(Vector2.right * speed * Time.deltaTime);  // vector is (1,0)
             body.AddForce(Vector2.right * speed);
@@ -79,7 +79,7 @@ public class PlayerController : MonoBehaviour
     public void OnJump(InputValue movementValue)
     {
         if (isGrounded) // to avoid the player jumping while not on the ground
-            jump = true; 
+            jump = true;
         //Debug.Log("Jumping!!!");
         //transform.Translate(Vector2.up * jumpForce * Time.deltaTime);
     }
@@ -97,17 +97,20 @@ public class PlayerController : MonoBehaviour
     {
         float desired = transform.position.y + 3; //how high to go
 
-        while(transform.position.y < desired) //while not that high
+        while (transform.position.y < desired) //while not that high
         {
             transform.position = new Vector2(transform.position.x, transform.position.y + 0.5f);
             yield return new WaitForSeconds(0.05f);
         }
     }
-    
+
     // Needed to restart the game if the player leaves the platform (or falls in lava)
     private void OnTriggerEnter2D(Collider2D collision)
     {
         if (collision.gameObject.CompareTag("boundary"))
+        {
+            GameManager.instance.DecreaseLives();
             SceneManager.LoadScene(0);
+        }
     }
 }
