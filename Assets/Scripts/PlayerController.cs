@@ -13,12 +13,16 @@ public class PlayerController : MonoBehaviour
     private Rigidbody2D body;
     private bool isGrounded = false;
     private bool jump = false;
+    private float fireRate = 0.3f;
+    private float nextFire = 0f;
 
     //public
     public float speed = 3;
     public float jumpForce = 250;
     public float maxSpeed = 7f;
     public float gravityMultiplier = 2f;
+    public GameObject fire; //for our bullets
+    public Transform firePoint;
 
     // Start is called before the first frame update
     void Start()
@@ -82,6 +86,16 @@ public class PlayerController : MonoBehaviour
             jump = true;
         //Debug.Log("Jumping!!!");
         //transform.Translate(Vector2.up * jumpForce * Time.deltaTime);
+    }
+
+    public void OnFire(InputValue movementValue)
+    {
+        if (Time.time >= nextFire) //have we waiting long enough
+        {
+            nextFire = Time.time + fireRate;  //updated when we can shoot next
+            animator.SetTrigger("isShooting");
+            Instantiate(fire, firePoint.position, firePoint.rotation);
+        }
     }
 
     public void OnCollisionEnter2D(Collision2D collision)
