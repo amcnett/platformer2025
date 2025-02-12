@@ -15,6 +15,8 @@ public class PlayerController : MonoBehaviour
     private bool jump = false;
     private float fireRate = 0.3f;
     private float nextFire = 0f;
+    private bool facingRight = true;
+    private AudioSource audioSource;
 
     //public
     public float speed = 3;
@@ -23,6 +25,7 @@ public class PlayerController : MonoBehaviour
     public float gravityMultiplier = 2f;
     public GameObject fire; //for our bullets
     public Transform firePoint;
+    public AudioClip clip;
 
     // Start is called before the first frame update
     void Start()
@@ -30,6 +33,7 @@ public class PlayerController : MonoBehaviour
         animator = GetComponent<Animator>();                 // for animation
         sprite_r = GetComponent<SpriteRenderer>();           // for sprite flip
         body = GetComponent<Rigidbody2D>();                  // to apply force to player
+        audioSource = GetComponent<AudioSource>();
     }
 
     // Note that we changed this from Update to FixedUpdate as we are now working directly
@@ -68,10 +72,18 @@ public class PlayerController : MonoBehaviour
     public void Update()
     {
         // to make sure player is facing direction they are heading
-        if (movementVector.x < 0) // if we are walking to the left
-            sprite_r.flipX = true;
-        else if (movementVector.x > 0) //if we are walking to the right
-            sprite_r.flipX = false;
+        if (movementVector.x < 0 && facingRight)
+        {// if we are walking to the left
+            //sprite_r.flipX = true;
+            Flip(); //need so our firing point is also flipped to the other side
+            facingRight = false;
+        }
+        else if (movementVector.x > 0 && !facingRight)
+        {//if we are walking to the right
+            //sprite_r.flipX = false;
+            Flip();
+            facingRight = true;
+        }
     }
 
     public void OnMove(InputValue movementValue)
@@ -94,7 +106,9 @@ public class PlayerController : MonoBehaviour
         {
             nextFire = Time.time + fireRate;  //updated when we can shoot next
             animator.SetTrigger("isShooting");
-            Instantiate(fire, firePoint.position, firePoint.rotation);
+            Instantiate(fire, firePoint.position, facingRight ? firePoint.rotation : Quaternion.Euler(0, 180, 0));
+            //audioSource.Play();
+            audioSource.PlayOneShot(audioSource.clip, 1.2f);
         }
     }
 
@@ -127,4 +141,21 @@ public class PlayerController : MonoBehaviour
             SceneManager.LoadScene(0);
         }
     }
+
+    public Vector2 GetDirection()
+    {
+        //return facingRight;
+        if (facingRight)
+            return Vector2.right;
+        else 
+            return Vector2.left;
+    }
+
+    void Flip()
+    {
+        Vector3 theScale = transform.localScale;
+        theScale.x = theScale.x * -1; //invert the value
+        transform.localScale = theScale;
+    }
+
 }
