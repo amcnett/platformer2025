@@ -73,4 +73,15 @@ public class PlayerMovement : MonoBehaviour
         Debug.Log(isGrounded);
     }
 
+    private void OnDrawGizmos()
+    {
+        // Set the color of the gizmo (e.g., blue)
+        Gizmos.color = Color.blue;
+    
+        // Draw a sphere at the center of the overlap circle with the specified radius
+        // Although it is a sphere, in the 2D Scene view it will appear as a circle
+        Gizmos.DrawSphere(groundCheck.position, groundCheckRadius);
+    }
+
+
 }
