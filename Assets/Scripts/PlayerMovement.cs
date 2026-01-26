@@ -5,16 +5,20 @@ public class PlayerController : MonoBehaviour
 {
     private Animator anim;
     private Rigidbody2D rb;
+    private PlayerInput pi;
     private Vector2 moveInput;
     private bool facingRight = true;
     private bool jumpPressed = false;
     private bool isGrounded = true;
+    private float attackRate = .5f; 
+    private float nextAttackTime;
 
     [Tooltip("How fast the player should move.")]
     public float moveSpeed = 8f;
     public float jumpForce = 10f;
     public float airMultiplier = 0.25f;
     public float fallGravityScale = 2f; // Normal gravity scale (200%)
+    public InputAction attackAction;
 
     [Header("Ground Check")]
     public Transform groundCheck;
@@ -27,6 +31,7 @@ public class PlayerController : MonoBehaviour
     {
         anim = GetComponent<Animator>();
         rb = GetComponent<Rigidbody2D>();
+        pi = GetComponent<PlayerInput>();
     }
 
     void OnMove(InputValue movementValue)
@@ -40,6 +45,11 @@ public class PlayerController : MonoBehaviour
         jumpPressed = true;
         CheckGrounded();
     }
+
+    //void OnAttack(InputValue attackValue) //only does once -- need to use polling instead for hold
+    //{
+    //    anim.SetTrigger("isShooting");
+    //}
 
     // Update is called once per frame
     void Update()
@@ -59,6 +69,12 @@ public class PlayerController : MonoBehaviour
 
         if(isGrounded)
             shadowDot.gameObject.SetActive(false);
+
+        float attackHeld = pi.actions["Attack"].ReadValue<float>();
+        if (attackHeld > 0.5f && Time.time >= nextAttackTime) {
+            anim.SetTrigger("isShooting");
+            nextAttackTime = Time.time + attackRate; 
+        }
     }
 
     void FixedUpdate()
