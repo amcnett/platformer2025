@@ -1,142 +1,161 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
 public class PlayerController : MonoBehaviour
 {
-    private Animator anim;
-    private Rigidbody2D rb;
-    private PlayerInput pi;
-    private Vector2 moveInput;
+    //private
+    private Vector2 movementVector;
+    private Animator animator;                                // for animation
+    private SpriteRenderer sprite_r;                          // for sprite flip
+    private Rigidbody2D body;
+    private bool isGrounded = false;
+    private bool jump = false;
+    private float fireRate = 0.3f;
+    private float nextFire = 0f;
     private bool facingRight = true;
-    private bool jumpPressed = false;
-    private bool isGrounded = true;
-    private float attackRate = .5f; 
-    private float nextAttackTime;
+    private AudioSource audioSource;
 
-    [Tooltip("How fast the player should move.")]
-    public float moveSpeed = 8f;
-    public float jumpForce = 10f;
-    public float airMultiplier = 0.25f;
-    public float fallGravityScale = 2f; // Normal gravity scale (200%)
-    public InputAction attackAction;
+    //public
+    public float speed = 3;
+    public float jumpForce = 250;
+    public float maxSpeed = 7f;
+    public float gravityMultiplier = 2f;
+    public GameObject fire; //for our bullets
+    public Transform firePoint;
+    public AudioClip clip;
 
-    [Header("Ground Check")]
-    public Transform groundCheck;
-    public LayerMask groundLayer;
-    public float groundCheckRadius = .25f;
-    public Transform shadowDot;
-
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    // Start is called before the first frame update
     void Start()
     {
-        anim = GetComponent<Animator>();
-        rb = GetComponent<Rigidbody2D>();
-        pi = GetComponent<PlayerInput>();
+        animator = GetComponent<Animator>();                 // for animation
+        sprite_r = GetComponent<SpriteRenderer>();           // for sprite flip
+        body = GetComponent<Rigidbody2D>();                  // to apply force to player
+        audioSource = GetComponent<AudioSource>();
     }
 
-    void OnMove(InputValue movementValue)
-    {
-        moveInput = movementValue.Get<Vector2>();
-        Debug.Log("Player movement: " + moveInput.x);
-    }
-
-    void OnJump(InputValue movementValue)
-    {
-        jumpPressed = true;
-        CheckGrounded();
-    }
-
-    //void OnAttack(InputValue attackValue) //only does once -- need to use polling instead for hold
-    //{
-    //    anim.SetTrigger("isShooting");
-    //}
-
-    // Update is called once per frame
-    void Update()
-    {
-        //one way to move game objects = by using translate
-        //transform.Translate(moveInput * Vector2.left * Time.deltaTime);
-        if (moveInput.x < 0 && facingRight) //moving left but facing right
-        {
-            Flip();
-            facingRight = false;
-        }
-        else if (moveInput.x > 0 && !facingRight)  //moving right but facing left
-        {
-            Flip();
-            facingRight = true;
-        }
-
-        if(isGrounded)
-            shadowDot.gameObject.SetActive(false);
-
-        float attackHeld = pi.actions["Attack"].ReadValue<float>();
-        if (attackHeld > 0.5f && Time.time >= nextAttackTime) {
-            anim.SetTrigger("isShooting");
-            nextAttackTime = Time.time + attackRate; 
-        }
-    }
-
+    // Note that we changed this from Update to FixedUpdate as we are now working directly
+    // with the player physics
     void FixedUpdate()
     {
-        float targetSpeed = moveInput.x * moveSpeed; //how fast I want the player to go
-        float speedDiff = targetSpeed - rb.linearVelocity.x; //how far away am I from the speed I want to be
-        float accelRate = isGrounded ? moveSpeed : moveSpeed * airMultiplier;
-        float movement = speedDiff * accelRate; //how hard to push the player
+        animator.SetFloat("speed", Mathf.Abs(movementVector.x));   // for animation
 
-        rb.AddForce(Vector2.right * movement);
-        anim.SetFloat("speed", Mathf.Abs(rb.linearVelocity.x));
+        if (movementVector.x > 0 && body.velocity.x < maxSpeed)
+            //transform.Translate(Vector2.right * speed * Time.deltaTime);  // vector is (1,0)
+            body.AddForce(Vector2.right * speed);
+        else if (movementVector.x < 0 && Mathf.Abs(body.velocity.x) < maxSpeed)
+            //transform.Translate(Vector2.left * speed * Time.deltaTime); // vector is (-1, 0)
+            body.AddForce(Vector2.left * speed);
 
-        if (jumpPressed && isGrounded)
+        if (jump) //if the player pressed jump 
         {
-            rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
-            jumpPressed = false;
+            //transform.Translate(Vector2.up * jumpForce * Time.deltaTime);
+            //StartCoroutine("LerpJump");
+            body.AddForce(Vector2.up * jumpForce);
+            jump = false;
             isGrounded = false;
         }
 
-        if (rb.linearVelocity.y < 0)
+        // used this to get rid of player slowing floating down
+        if (body.velocity.y < 0) //player is falling
         {
-            rb.gravityScale = fallGravityScale;
+            body.gravityScale = gravityMultiplier; //speed up drop
         }
         else
         {
-            rb.gravityScale = 1f; //default (100%)
+            body.gravityScale = 1;
         }
+    }
 
-        RaycastHit2D hit = Physics2D.Raycast(rb.position, Vector2.down, 100f, groundLayer);
-        if (hit)
+    public void Update()
+    {
+        // to make sure player is facing direction they are heading
+        if (movementVector.x < 0 && facingRight)
+        {// if we are walking to the left
+            //sprite_r.flipX = true;
+            Flip(); //need so our firing point is also flipped to the other side
+            facingRight = false;
+        }
+        else if (movementVector.x > 0 && !facingRight)
+        {//if we are walking to the right
+            //sprite_r.flipX = false;
+            Flip();
+            facingRight = true;
+        }
+    }
+
+    public void OnMove(InputValue movementValue)
+    {
+        movementVector = movementValue.Get<Vector2>();
+        Debug.Log(movementVector.x);
+    }
+
+    public void OnJump(InputValue movementValue)
+    {
+        if (isGrounded) // to avoid the player jumping while not on the ground
+            jump = true;
+        //Debug.Log("Jumping!!!");
+        //transform.Translate(Vector2.up * jumpForce * Time.deltaTime);
+    }
+
+    public void OnFire(InputValue movementValue)
+    {
+        if (Time.time >= nextFire) //have we waiting long enough
         {
-            shadowDot.position = hit.point;
-            shadowDot.gameObject.SetActive(true);
+            nextFire = Time.time + fireRate;  //updated when we can shoot next
+            animator.SetTrigger("isShooting");
+            Instantiate(fire, firePoint.position, facingRight ? firePoint.rotation : Quaternion.Euler(0, 180, 0));
+            //audioSource.Play();
+            audioSource.PlayOneShot(audioSource.clip, 1.2f);
         }
+    }
 
+    public void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("ground"))
+        {
+            isGrounded = true;
+            Debug.Log("Touching ground");
+        }
+    }
+
+    IEnumerator LerpJump()
+    {
+        float desired = transform.position.y + 3; //how high to go
+
+        while (transform.position.y < desired) //while not that high
+        {
+            transform.position = new Vector2(transform.position.x, transform.position.y + 0.5f);
+            yield return new WaitForSeconds(0.05f);
+        }
+    }
+
+    // Needed to restart the game if the player leaves the platform (or falls in lava)
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        if (collision.gameObject.CompareTag("boundary"))
+        {
+            GameManager.instance.DecreaseLives();
+            SceneManager.LoadScene(0);
+        }
+    }
+
+    public Vector2 GetDirection()
+    {
+        //return facingRight;
+        if (facingRight)
+            return Vector2.right;
+        else 
+            return Vector2.left;
     }
 
     void Flip()
     {
         Vector3 theScale = transform.localScale;
-        theScale.x = theScale.x * -1; // inverts the x value of the scale
-        transform.localScale = theScale; //set game object scale equal to our modified scale
-    }
-
-    void CheckGrounded()
-    {
-        isGrounded = Physics2D.OverlapCircle(
-            groundCheck.position,
-            groundCheckRadius,
-            groundLayer
-        );
-        Debug.Log(isGrounded);
-    }
-
-    private void OnDrawGizmos()
-    {
-        // Set the color of the gizmo (e.g., blue)
-        Gizmos.color = Color.blue;
-
-        // Draw a sphere at the center of the overlap circle with the specified radius
-        // Although it is a sphere, in the 2D Scene view it will appear as a circle
-        Gizmos.DrawSphere(groundCheck.position, groundCheckRadius);
+        theScale.x = theScale.x * -1; //invert the value
+        transform.localScale = theScale;
     }
 
 }
