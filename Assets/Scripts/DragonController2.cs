@@ -18,6 +18,7 @@ public class DragonController2 : MonoBehaviour
     {
         // PingPong gives us a value that moves 0 → 1 → 0 repeatedly
         float t = Mathf.PingPong(Time.time * speed, 1f); // Move between the two patrol points, 5 seconds
+        float t = Mathf.PingPong(Time.time/(duration), 1f); // Move between the two patrol points using duration
         Debug.Log(t);
         transform.position = Vector3.Lerp(pointA, pointB, t); 
         
